@@ -213,7 +213,7 @@ void urlencode(char *str,char *urlbuf)
 
 #endif // URLENCODE_websrv_help
 
-// parse a string an extract the IP to bytestr
+// parse a string and extract the IP to bytestr
 uint8_t parse_ip(uint8_t *bytestr,char *str)
 {
         char *sptr;

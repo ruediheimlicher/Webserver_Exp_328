@@ -24,7 +24,7 @@ extern void make_udp_reply_from_request(uint8_t *buf,char *data,uint8_t datalen,
 // of the tcp data if there is tcp data part
 extern uint16_t packetloop_icmp_tcp(uint8_t *buf,uint16_t plen);
 // functions to fill the web pages with data:
-extern uint16_t fill_tcp_data_p(uint8_t *buf,uint16_t pos, const prog_char *progmem_s);
+extern uint16_t fill_tcp_data_p(uint8_t *buf,uint16_t pos, const const char *progmem_s);
 extern uint16_t fill_tcp_data(uint8_t *buf,uint16_t pos, const char *s);
 
 
@@ -42,7 +42,7 @@ extern void client_set_wwwip(uint8_t *wwwipaddr);
 #define HTTP_HEADER_START ((uint16_t)TCP_SRC_PORT_H_P+(buf[TCP_HEADER_LEN_P]>>4)*4)
 #ifdef WWW_client
 // ----- http get
-extern void client_browse_url(prog_char *urlbuf, char *urlbuf_varpart, prog_char *hoststr,void (*callback)(uint8_t,uint16_t));
+extern void client_browse_url(const char *urlbuf, char *urlbuf_varpart, const char *hoststr,void (*callback)(uint8_t,uint16_t));
 // The callback is a reference to a function which must look like this:
 // void browserresult_callback(uint8_t statuscode,uint16_t datapos)
 // statuscode=0 means a good webpage was received, with http code 200 OK
@@ -54,7 +54,7 @@ extern void client_browse_url(prog_char *urlbuf, char *urlbuf_varpart, prog_char
 // postval is a string buffer which can only be de-allocated by the caller 
 // when the post operation was really done (e.g when callback was executed).
 // postval must be urlencoded.
-extern void client_http_post(prog_char *urlbuf, prog_char *hoststr, prog_char *additionalheaderline,char *postval,void (*callback)(uint8_t,uint16_t));
+extern void client_http_post(const char *urlbuf, const char *hoststr, const char *additionalheaderline,char *postval,void (*callback)(uint8_t,uint16_t));
 // The callback is a reference to a function which must look like this:
 // void browserresult_callback(uint8_t statuscode,uint16_t datapos)
 // statuscode=0 means a good webpage was received, with http code 200 OK

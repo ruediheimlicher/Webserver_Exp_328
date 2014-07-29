@@ -93,6 +93,8 @@ static uint8_t monitoredhost[4] = {10,0,0,7};
 
 static char CurrentDataString[64];
 
+volatile char WebserverIPString[64];
+
 static char* teststring = "pw=Pong&strom=360\0";
 
 //static char EEPROM_String[96];
@@ -206,7 +208,7 @@ static uint8_t websrvip[4] = {193,17,85,42}; // ruediheimlicher 193.17.85.42
 // The name of the virtual host which you want to contact at websrvip (hostname of the first portion of the URL):
 
 
-#define WEBSERVER_VHOST "ruediheimlicher.ch"
+#define WEBSERVER_VHOST "www.ruediheimlicher.ch"
 
 
 // Default gateway. The ip address of your DSL router. It can be set to the same as
@@ -358,13 +360,13 @@ void ping_callback(uint8_t *ip)
         //			lcd_gotoxy(12,0);
         //			lcd_puts("ping\0");
         // save IP from where the ping came:
-       /*
+       
         while(i<4)
         {
             pingsrcip[i]=ip[i];
             i++;
         }
-        */
+       
     }
 }
 
@@ -373,12 +375,12 @@ void strom_browserresult_callback(uint8_t statuscode,uint16_t datapos)
    // datapos is not used in this example
    if (statuscode==0)
    {
-      /*
+      
          lcd_gotoxy(12,0);
          lcd_puts("        \0");
          lcd_gotoxy(12,0);
          lcd_puts("s cb OK\0");
-       */
+      
      // lcd_gotoxy(19,0);
      // lcd_putc(' ');
       lcd_gotoxy(19,0);
@@ -687,12 +689,32 @@ uint8_t analyse_get_url(char *str)	// codesnippet von Watchdog
 			// Passwort kontrollieren
 			if (verify_password(actionbuf))
 			{
-				if (find_key_val(str,actionbuf,10,"tst"))
+				if (find_key_val(str,actionbuf,10,"cont"))
 				{
 					return(16);
 				}
-			}
+			
+         
+         
+         }
 		}
+      
+      // Eingabe IP detektieren
+      if (find_key_val(str,actionbuf,10,"task"))
+      {
+         //urldecode(actionbuf);
+         //lcd_gotoxy(4,1);
+         //lcd_puts(actionbuf);
+         if (find_key_val(str,actionbuf,20,"webservip"))
+         {
+            lcd_gotoxy(4,1);
+            lcd_puts(actionbuf);
+            strcpy((char*)WebserverIPString,actionbuf);
+            return 20;
+         }
+      }
+      
+      
         
 		return(0);
 		
@@ -725,29 +747,7 @@ uint8_t analyse_get_url(char *str)	// codesnippet von Watchdog
 				
 				
 				
-				// Daten fuer EEPROM von Homeserver empfangen
-				
-				if (find_key_val(str,actionbuf,10,"wadr"))			// EEPROM-Daten werden von Homeserver gesendet
-				{
-						return (9);												// Empfang bestätigen
-				} // wadr
-				
-				if (find_key_val(str,actionbuf,10,"iswriteok"))		// Anfrage ob writeok
-				{
-                    
-					return (7);
-				}
-                
-				if (find_key_val(str,actionbuf,12,"isstat0ok"))		// Anfrage ob statusok isstat0ok
-				{
-					return (10);
-				}
-				
-                if (find_key_val(str,actionbuf,10,"reset")) // HomeCentral reseten
-                {
-                    
-                }	
-				
+					
 			}//verify pw
 		}//find_key pw
 		return(0);
@@ -759,6 +759,17 @@ uint8_t analyse_get_url(char *str)	// codesnippet von Watchdog
 	return(0);
 }
 
+uint16_t print_webpage_confirm(uint8_t *buf)
+{
+   uint16_t plen;
+   plen=http200ok();
+   plen=fill_tcp_data_p(buf,plen,PSTR("<h2>OK</h2>"));
+   plen=fill_tcp_data_p(buf,plen,PSTR("<p>webservip: "));
+   plen=fill_tcp_data(buf,plen,(char*)WebserverIPString);
+   plen=fill_tcp_data_p(buf,plen,PSTR("</p>"));
+   plen=fill_tcp_data_p(buf,plen,PSTR("<a href=/>-&gt;continue</a>\n"));
+   return(plen);
+}
 
 
 
@@ -774,6 +785,28 @@ uint16_t print_webpage_ok(uint8_t *buf)
 	return plen;
 }
 
+uint16_t print_webpage_cont(uint8_t *buf)
+{
+	// Schickt den okcode als Bestaetigung fuer den Empfang des Requests
+	uint16_t plen;
+	plen=fill_tcp_data_p(buf,0,PSTR("HTTP/1.0 200 OK\r\nContent-Type: text/html\r\nPragma: no-cache\r\n\r\n"));
+	plen=fill_tcp_data_p(buf,plen,PSTR("<h2>weiterfahren</h2>"));
+   
+   plen=fill_tcp_data_p(buf,plen,PSTR("<p>\nWebserver-IP: <form action=/ack method=get>"));
+                                      
+   plen=fill_tcp_data_p(buf,plen,PSTR("<input type=text size=20 name=\"webservip\" >"));
+   plen=fill_tcp_data_p(buf,plen,PSTR("<input type=hidden name=\"task\" value=10>"));
+   plen=fill_tcp_data_p(buf,plen,PSTR("<input type=submit value=\"Bearbeiten\"></p></form>"));
+
+   
+
+   
+   
+   
+	return plen;
+}
+
+
 // von garagedoor
 uint16_t print_line_mobile_webpage(uint16_t plen)
 {
@@ -788,7 +821,7 @@ uint16_t print_webpage_ok_n(void)
    plen=http200ok();
    plen=print_line_mobile_webpage(plen);
    plen=fill_tcp_data_p(buf,plen,PSTR("<h2>OK</h2>\n"));
-   plen=fill_tcp_data_p(buf,plen,PSTR("<form action=/ method=get><input type=submit value=\"continue\"></form>\n"));
+   plen=fill_tcp_data_p(buf,plen,PSTR("<form action=/ack method=get><input type=submit value=\"continue\"><input type=hidden name=cont value=1></form>\n"));
    return(plen);
 }
 
@@ -834,7 +867,7 @@ uint16_t print_webpage_status(uint8_t *buf)
    
 	// Taste und Eingabe fuer Passwort
 	plen=fill_tcp_data_p(buf,plen,PSTR("<form action=/ack method=get>"));
-	plen=fill_tcp_data_p(buf,plen,PSTR("<p>\nPasswort: <input type=password size=10 name=pw ><input type=hidden name=tst value=1>  <input type=submit value=\"Bearbeiten\"></p></form>"));
+	plen=fill_tcp_data_p(buf,plen,PSTR("<p>\nPasswort: <input type=password size=10 name=pw ><input type=hidden name=cont value=1>  <input type=submit value=\"Bearbeiten\"></p></form>"));
 	
 	plen=fill_tcp_data_p(buf,plen,PSTR("<p><hr>"));
 	plen=fill_tcp_data(buf,plen,DATUM);
@@ -1280,10 +1313,6 @@ int main(void)
            if (webstatus & (1<<DATAOK) )
             {
                
-               //lcd_gotoxy(0,0);
-               //lcd_puts(CurrentDataString);
-               //lcd_putc('*');
-               
               // start_web_client=2;
                //strcat("pw=Pong&strom=360\0",(char*)teststring);
 
@@ -1370,8 +1399,38 @@ int main(void)
                //dat_p = print_webpage_ok_n();
                uint8_t ok=0;
                
-               dat_p = print_webpage_ok(buf);
+               dat_p = print_webpage_cont(buf);
                //dat_p = print_webpage_ok_n();
+            }
+#pragma mark cmd 17
+            else if (cmd==17)
+            {
+               lcd_putc('t');
+               char key1[]="pw=";
+               char sstr[]="Pong";
+               
+               strcpy(CurrentDataString,key1);
+               strcat(CurrentDataString,sstr);
+               
+               strcat(CurrentDataString,"&strom=");
+
+               strcat(CurrentDataString,"123\0");
+               //lcd_gotoxy(10,1);
+               //lcd_puts(CurrentDataString);
+               //lcd_putc('*');
+
+               //dat_p = print_webpage_cont(buf);
+               //client_browse_url((char*)PSTR("/cgi-bin/experiment.pl?"),CurrentDataString,(char*)PSTR(WEBSERVER_VHOST),&strom_browserresult_callback);
+               client_browse_url("/cgi-bin/experiment.pl?",CurrentDataString,"www.ruediheimlicher.ch",&strom_browserresult_callback);
+               
+            }
+ #pragma mark cmd 20
+            else if (cmd==20)
+            {
+               lcd_gotoxy(8,0);
+               //lcd_puts("task");
+               lcd_puts((char*)WebserverIPString);
+               dat_p = print_webpage_confirm(buf);
             }
 
 				else
